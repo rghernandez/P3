@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]>      <html class="no-js"> <!--<![endif]-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>IRAC-P3</title>
+    <meta name="description" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="" />
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"
+    ></script>
+    <link
+      href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+  </head>
+
+  <body>
+    <!--[if lt IE 7]>
+      <p class="browsehappy">
+        You are using an <strong>outdated</strong> browser. Please
+        <a href="#">upgrade your browser</a> to improve your experience.
+      </p>
+    <![endif]-->
+
+    <script>
+      var player;
+      document.addEventListener("DOMContentLoaded", function () {
+        init();
+      });
+      function init() {
+        player = dashjs.MediaPlayerFactory.create(
+          document.querySelector(".dashjsplayer")
+        );
+      }
+    </script>
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+
+    <h1>P3</h1>
+
+    <div class="code">
+      <video
+        class="dashjs-player"
+        autoplay
+        controls
+        preload="auto"
+        muted
+      ></video>
+    </div>
+    <div class="code">
+      <p>Video Bitrate: <span id="bitrate"></span></p>
+      <p>Video Buffer: <span id="buffer"></span></p>
+      <p>Video Representation: <span id="representation"></span></p>
+    </div>
+    <script>
+      const labels = [];
+
+      const data = {
+        labels: labels,
+        datasets: [
+          {
+            label: "BufferLevel",
+            yAxisID: "A",
+            fill: true,
+            backgroundColor: "rgba(106, 245, 39, 0.3)",
+            borderColor: "rgb(106, 245, 39)",
+            data: [],
+          },
+          {
+            label: "Bitrate",
+            yAxisID: "B",
+            fill: true,
+            backgroundColor: "rgba(255, 99, 12, 0.3)",
+            borderColor: "rgb(255, 99, 12)",
+            data: [],
+          },
+        ],
+      };
+
+      const config = {
+        type: "line",
+        data: data,
+
+        options: {
+          responsive: true,
+          interaction: {
+            mode: "index",
+            intersect: false,
+          },
+          plugins: {
+            title: {
+              display: true,
+              text: "Estadisticas",
+            },
+          },
+          scales: {
+            A: {
+              type: "linear",
+              display: true,
+              position: "left",
+            },
+            B: {
+              type: "linear",
+              display: true,
+              position: "right",
+              grid: {
+                drawOnChartArea: false, // only want the grid lines for one axis to show up
+              },
+            },
+          },
+        },
+      };
+    </script>
+
+    <script type="text/javascript">
+      const protData = {
+        "org.w3.clearkey": {
+          clearkeys: {
+            oW5AK5BW43HzbTSKpiu3SQ: "hyN9IKGfWKdAwFaE5pm0qg",
+          },
+        },
+      };
+      document.addEventListener("DOMContentLoaded", function () {
+        init();
+      });
+      var time = 0;
+      function init() {
+        var video,
+          player,
+          mpd_url = "output/stream.mpd";
+        video = document.querySelector("video");
+        player = dashjs.MediaPlayer().create();
+        player.setProtectionData(protData);
+        player.initialize(video, mpd_url, true);
+        player.on(dashjs.MediaPlayer.events["PLAYBACK_ENDED"], function () {
+          clearInterval(eventPoller);
+        });
+
+        var eventPoller = setInterval(function () {
+          var streamInfo = player.getActiveStream().getStreamInfo();
+          var dashMetrics = player.getDashMetrics();
+          var dashAdapter = player.getDashAdapter();
+          if (dashMetrics && streamInfo) {
+            const periodIdx = streamInfo.index;
+            var repSwitch = dashMetrics.getCurrentRepresentationSwitch(
+              "video",
+              true
+            );
+            var bufferLevel = dashMetrics.getCurrentBufferLevel("video", true);
+            var bitrate = repSwitch
+              ? Math.round(
+                  dashAdapter.getBandwidthForRepresentation(
+                    repSwitch.to,
+                    periodIdx
+                  ) / 1000
+                )
+              : NaN;
+
+            document.getElementById("buffer").innerText = bufferLevel + " secs";
+            document.getElementById("bitrate").innerText = bitrate + " Kbps";
+            document.getElementById("representation").innerText = repSwitch.to;
+            labels.push(time);
+            time += 0.5;
+
+            data.datasets[0].data.push(bufferLevel);
+            data.datasets[1].data.push(bitrate);
+            myChart.update();
+          }
+        }, 500);
+      }
+    </script>
+    <div>
+      <canvas id="myChart"></canvas>
+    </div>
+
+    <script>
+      const myChart = new Chart(document.getElementById("myChart"), config);
+    </script>
+  </body>
+</html>
